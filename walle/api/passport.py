@@ -18,6 +18,7 @@ from walle.model.user import UserModel
 from walle.service.code import Code
 from walle.service.error import WalleError
 
+
 class PassportAPI(ApiResource):
     actions = ['login', 'logout']
 
@@ -48,11 +49,7 @@ class PassportAPI(ApiResource):
 
             if user is not None and user.verify_password(form.password.data):
                 try:
-                    remember = False
-                    if current_app.config.get("COOKIE_ENABLE"):
-                        remember = True
-                    current_app.logger.info("remember me(记住我)功能是否开启,{}".format(remember))
-                    login_user(user, remember=remember)
+                    login_user(user)
                     user.fresh_session()
                 except WalleError as e:
                     return self.render_json(code=e.code, data=Code.code_msg[e.code])

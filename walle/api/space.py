@@ -125,22 +125,16 @@ class SpaceAPI(SecurityResource):
             space = SpaceModel().get_by_id(space_id)
             data = form.form2dict()
             current_app.logger.info(data)
-            member_model = MemberModel(group_id=space_id)
-            old_owner = space.user_id
-            new_owner = data['user_id']
+
             # a new type to update a model
-            space.update(data)
-
-            if str(old_owner) != str(new_owner):
-                # owner has changed
-                member_model.change_owner(old_owner, new_owner)
-
+            ret = space.update(data)
             # create group
-            current_owner = {"user_id": new_owner, "role": OWNER}
+            member = {"user_id": data['user_id'], "role": OWNER}
+            members = []
             if 'members' in request.form:
                 members = json.loads(request.form['members'])
-                members.append(current_owner)
-                member_model.update_group(members=members)
+                members.append(member)
+                MemberModel(group_id=space_id).update_group(members=members)
             return self.render_json(data=space.item())
         else:
             return self.render_error(code=Code.form_error, message=form.errors)

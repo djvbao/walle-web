@@ -89,13 +89,12 @@ class Repo:
                 return False
         return False
 
-    def init(self, url, branch="master"):
+    def init(self, url):
         # 创建目录
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         # git clone
         if self.is_git_dir():
-            self.checkout_2_branch(branch)
             return self.pull()
         else:
             return self.clone(url)
