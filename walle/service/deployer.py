@@ -72,11 +72,12 @@ class Deployer:
             self.project_info = self.taskMdl.get('project_info')
 
             # copy to a local version
-            self.release_version = '{project_id}_{task_id}_{timestamp}'.format(
-                project_id=self.project_info['id'],
-                task_id=self.task_id,
-                timestamp=time.strftime('%Y%m%d_%H%M%S', time.localtime(time.time())),
-            )
+            self.release_version = self.taskMdl.get('link_id') if (self.taskMdl.get("is_rollback")) else \
+                '{project_id}_{task_id}_{timestamp}'.format(
+                    project_id=self.project_info['id'],
+                    task_id=self.task_id,
+                    timestamp=time.strftime('%Y%m%d_%H%M%S', time.localtime(time.time())),
+                )
             current_app.logger.info(self.taskMdl)
 
             # 将环境变量包在 "" 里，防止特殊字符报错
@@ -103,7 +104,7 @@ class Deployer:
                     var_list = var.split('=', 1)
                     if len(var_list) != 2:
                         continue
-                    self.custom_global_env[var_list[0]] = var_list[1]
+                    self.custom_global_env[var_list[0].strip()] = var_list[1].strip()
 
             self.localhost.init_env(env=self.custom_global_env)
 
@@ -379,7 +380,7 @@ class Deployer:
                 errors.append({
                     'title': '远程目标机器免密码登录失败',
                     'why': '远程目标机器：%s 错误：%s' % (server_info['host'], result.stdout),
-                    'how': '在宿主机中配置免密码登录，把宿主机用户%s的~/.ssh/ssh_rsa.pub添加到远程目标机器用户%s的~/.ssh/authorized_keys。了解更多：http://walle-web.io/docs/troubleshooting.html' % (
+                    'how': '在宿主机中配置免密码登录，把宿主机用户%s的~/.ssh/id_rsa.pub添加到远程目标机器用户%s的~/.ssh/authorized_keys。了解更多：http://walle-web.io/docs/troubleshooting.html' % (
                     pwd.getpwuid(os.getuid())[0], server_info['host']),
                 })
 
@@ -433,7 +434,7 @@ class Deployer:
         with waller.cd(self.project_info['target_releases']):
             result = waller.run(command, wenv=self.config())
 
-        command = 'ls -t {project_id}_* | tail -n +{keep_version_num} | xargs rm -rf'.format(
+        command = 'find ./ -name "{project_id}_*" -print | ls -t | tail -n +{keep_version_num} | xargs rm -rf'.format(
             project_id=self.project_info['id'], keep_version_num=int(self.project_info['keep_version_num']) + 1)
         with waller.cd(self.project_info['target_releases']):
             result = waller.run(command, wenv=self.config())
@@ -491,10 +492,10 @@ class Deployer:
                     waller = Waller(host=host, user=server_info['user'], port=server_info['port'], inline_ssh_env=True)
                     waller.init_env(env=self.custom_global_env)
 
-                    self.connections[host] = waller
-                    self.prev_release(self.connections[host])
-                    self.release(self.connections[host])
-                    self.post_release(self.connections[host])
+                    self.connections[self.task_id] = waller
+                    self.prev_release(self.connections[self.task_id])
+                    self.release(self.connections[self.task_id])
+                    self.post_release(self.connections[self.task_id])
                     RecordModel().save_record(stage=RecordModel.stage_end, sequence=0, user_id=current_user.id,
                                               task_id=self.task_id, status=RecordModel.status_success, host=host,
                                               user=server_info['user'], command='')
@@ -519,17 +520,16 @@ class Deployer:
 
         try:
             is_all_servers_success = True
-            self.release_version = self.taskMdl.get('link_id')
             for server_info in self.servers:
                 host = server_info['host']
                 try:
                     waller = Waller(host=host, user=server_info['user'], port=server_info['port'], inline_ssh_env=True)
                     waller.init_env(env=self.custom_global_env)
 
-                    self.connections[host] = waller
-                    self.prev_release_custom(self.connections[host])
-                    self.release(self.connections[host])
-                    self.post_release(self.connections[host])
+                    self.connections[self.task_id] = waller
+                    self.prev_release_custom(self.connections[self.task_id])
+                    self.release(self.connections[self.task_id])
+                    self.post_release(self.connections[self.task_id])
                     RecordModel().save_record(stage=RecordModel.stage_end, sequence=0, user_id=current_user.id,
                                               task_id=self.task_id, status=RecordModel.status_success, host=host,
                                               user=server_info['user'], command='')
